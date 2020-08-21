@@ -352,6 +352,7 @@ class TestDateParser(BaseTestCase):
         param('17th October, 2034 @ 01:08 am PDT', datetime(2034, 10, 17, 8, 8)),
         param('15 May 2004 23:24 EDT', datetime(2004, 5, 16, 3, 24)),
         param('08/17/14 17:00 (PDT)', datetime(2014, 8, 18, 0, 0)),
+        param('08/17/14 00:00 +02:00', datetime(2014, 8, 16, 22, 0)),
     ])
     def test_parsing_with_time_zones_and_converting_to_UTC(self, date_string, expected):
         self.given_parser(settings={'TO_TIMEZONE': 'UTC'})
@@ -725,6 +726,26 @@ class TestDateParser(BaseTestCase):
         self.when_date_is_parsed(date_string)
         self.then_period_is('day')
         self.then_date_obj_exactly_is(expected)
+
+    @parameterized.expand([
+        param('midnight', timezone="UTC", now_utc=datetime(2015, 2, 15, 17, 30), expected_utc=datetime(2015, 2, 15, 0, 0)),
+        param('midnight', timezone="UTC", now_utc=datetime(2015, 7, 15, 17, 30), expected_utc=datetime(2015, 7, 15, 0, 0)),
+        param('midnight', timezone="Europe/Paris", now_utc=datetime(2015, 2, 15, 17, 30), expected_utc=datetime(2015, 2, 14, 23, 0)),
+        param('midnight', timezone="Europe/Paris", now_utc=datetime(2015, 7, 15, 17, 30), expected_utc=datetime(2015, 7, 14, 22, 0)),
+        param('midnight', timezone="UTC", now_utc=datetime(2015, 2, 14, 23, 30), expected_utc=datetime(2015, 2, 14, 0, 0)),
+        param('midnight', timezone="UTC", now_utc=datetime(2015, 7, 14, 23, 30), expected_utc=datetime(2015, 7, 14, 0, 0)),
+        param('midnight', timezone="Europe/Paris", now_utc=datetime(2015, 2, 14, 23, 30), expected_utc=datetime(2015, 2, 14, 23, 0)),
+        param('midnight', timezone="Europe/Paris", now_utc=datetime(2015, 7, 14, 23, 30), expected_utc=datetime(2015, 7, 14, 22, 0)),
+    ])
+    def test_parsing_midnight(self, date_string, timezone, now_utc, expected_utc):
+        self.given_parser(settings={
+            'RELATIVE_BASE': now_utc,
+            "TIMEZONE": timezone,
+            "TO_TIMEZONE": "UTC",
+        })
+        self.when_date_is_parsed(date_string)
+        self.then_date_was_parsed_by_date_parser()
+        self.then_date_obj_exactly_is(expected_utc)
 
     def given_local_tz_offset(self, offset):
         self.add_patch(
